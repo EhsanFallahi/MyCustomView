@@ -1,17 +1,25 @@
 package com.example.customview
 
 import android.content.Context
-import android.graphics.Paint
-import android.graphics.PointF
-import android.graphics.Typeface
+import android.graphics.*
 import android.util.AttributeSet
 import android.view.View
+import kotlin.math.cos
+import kotlin.math.min
+import kotlin.math.sin
 
 private enum class FanSpeed(val lable:Int){
     OFF(R.string.fan_off),
     LOW(R.string.fan_low),
     MEDIUM(R.string.fan_medium),
-    HIGHT(R.string.fan_high)
+    HIGH(R.string.fan_high);
+
+    fun next()= when (this){
+        OFF->LOW
+        LOW->MEDIUM
+        MEDIUM->HIGH
+        HIGH->OFF
+    }
 }
 
 private const val RADIUS_OFFSET_LABEL=30
@@ -33,4 +41,49 @@ class DialView @JvmOverloads constructor(
         textSize=55.0f
         typeface= Typeface.create("",Typeface.BOLD)
     }
+
+    init {
+        isClickable=true
+    }
+
+    override fun performClick(): Boolean {
+        if (super.performClick())return true
+
+        fanSpeed=fanSpeed.next()
+            contentDescription=resources.getString(fanSpeed.lable)
+
+        invalidate()
+        return true
+    }
+
+    override fun onSizeChanged(width: Int, height: Int, oldWidth: Int, oldHeight: Int) {
+        radius=(min(width,height) /2.0 * 0.8).toFloat()
+    }
+
+
+    private fun PointF.computeXYForSpeed(pos:FanSpeed,radius:Float){
+        val startAngle=Math.PI *(9 / 8.0)
+        val angle=startAngle + pos.ordinal * (Math.PI /4)
+        x=(radius * cos(angle)).toFloat()+width/2
+        y=(radius * sin(angle)).toFloat()+height/2
+    }
+
+    override fun onDraw(canvas: Canvas?) {
+        super.onDraw(canvas)
+        paint.color=if (fanSpeed==FanSpeed.OFF) Color.GRAY else Color.GREEN
+        canvas?.drawCircle((width/2).toFloat(),(height/2.toFloat()),radius,paint)
+
+        val markerRadius=radius+ RADIUS_OFFSET_INDICATOR
+        pointPosition.computeXYForSpeed(fanSpeed,markerRadius)
+        paint.color=Color.BLACK
+        canvas?.drawCircle(pointPosition.x,pointPosition.y,radius/12,paint)
+
+        val lableRadius=radius+ RADIUS_OFFSET_LABEL
+        for (i in FanSpeed.values()){
+            pointPosition.computeXYForSpeed(i,lableRadius)
+            val lable=resources.getString(i.lable)
+            canvas?.drawText(lable,pointPosition.x,pointPosition.y,paint)
+        }
+    }
+
 }
